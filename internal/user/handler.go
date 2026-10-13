@@ -1,4 +1,4 @@
-package handler
+package user
 
 import (
 	"context"
@@ -9,24 +9,23 @@ import (
 	"strconv"
 
 	database "github.com/bekasyldev/lumea/internal/database"
-	"github.com/bekasyldev/lumea/internal/repository"
 	"github.com/go-chi/chi/v5"
 )
 
-type UserService interface {
-	GetById(ctx context.Context, id int64) (database.GetUserRow, error)
-	GetList(ctx context.Context) ([]database.ListUsersRow, error)
+type userService interface {
+	GetByID(ctx context.Context, id int64) (database.GetUserRow, error)
+	List(ctx context.Context) ([]database.ListUsersRow, error)
 }
 
-type UserHandler struct {
-	svc UserService
+type Handler struct {
+	svc userService
 }
 
-func NewUserHanlder(svc UserService) *UserHandler {
-	return &UserHandler{svc: svc}
+func NewHandler(svc userService) *Handler {
+	return &Handler{svc: svc}
 }
 
-func (h *UserHandler) GetById(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	userId := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(userId, 10, 64)
 	if err != nil {
@@ -35,11 +34,11 @@ func (h *UserHandler) GetById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.svc.GetById(r.Context(), id)
+	user, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
 		log.Println(err)
 		switch {
-		case errors.Is(err, repository.ErrUserNotFound):
+		case errors.Is(err, ErrUserNotFound):
 			http.Error(w, err.Error(), http.StatusNotFound)
 		default:
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -52,8 +51,8 @@ func (h *UserHandler) GetById(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-func (h *UserHandler) GetList(w http.ResponseWriter, r *http.Request) {
-	users, err := h.svc.GetList(r.Context())
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	users, err := h.svc.List(r.Context())
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)

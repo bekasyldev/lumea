@@ -5,11 +5,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bekasyldev/lumea/internal/auth"
 	database "github.com/bekasyldev/lumea/internal/database"
-	"github.com/bekasyldev/lumea/internal/handler"
-	"github.com/bekasyldev/lumea/internal/repository"
-	"github.com/bekasyldev/lumea/internal/service"
-
+	"github.com/bekasyldev/lumea/internal/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5"
@@ -24,10 +22,13 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer) // recover from crashes
 
 	queries := database.New(app.db) // store connection inside the Queries struct
-	userRepo := repository.NewUserRepository(queries)
-	userService := service.NewUserService(userRepo)
-	userHandler := handler.NewUserHanlder(userService)
-	authHandler := handler.NewAuthHandler(userService)
+	userRepo := user.NewRepository(queries)
+	userService := user.NewService(userRepo)
+	userHandler := user.NewHandler(userService)
+
+	authRepo := auth.NewRepository(queries)
+	authService := auth.NewService(authRepo)
+	authHandler := auth.NewAuthHandler(authService)
 
 	// public routes
 	r.Group(func(r chi.Router) {
@@ -41,8 +42,8 @@ func (app *application) mount() http.Handler {
 	// private routes (require a valid JWT)
 	r.Group(func(r chi.Router) {
 		r.Use(app.requireAuth)
-		r.Get("/users", userHandler.GetList)
-		r.Get("/users/{id}", userHandler.GetById)
+		r.Get("/users", userHandler.List)
+		r.Get("/users/{id}", userHandler.GetByID)
 	})
 
 	return r

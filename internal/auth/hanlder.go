@@ -1,4 +1,4 @@
-package handler
+package auth
 
 import (
 	"context"
@@ -8,8 +8,6 @@ import (
 	"net/http"
 
 	database "github.com/bekasyldev/lumea/internal/database"
-	"github.com/bekasyldev/lumea/internal/repository"
-	"github.com/bekasyldev/lumea/internal/service"
 	"github.com/bekasyldev/lumea/internal/token"
 )
 
@@ -38,7 +36,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	createUser, err := h.svc.Register(r.Context(), u.Username, u.HashedPassword)
 	if err != nil {
-		if errors.Is(err, repository.ErrUsernameTaken) {
+		if errors.Is(err, ErrUsernameTaken) {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
@@ -65,7 +63,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	tokenPair, err := h.svc.Login(r.Context(), u.Username, u.HashedPassword)
 	if err != nil {
-		if errors.Is(err, service.ErrInvalidCredentials) {
+		if errors.Is(err, ErrInvalidCredentials) {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return

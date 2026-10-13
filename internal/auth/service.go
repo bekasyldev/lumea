@@ -1,18 +1,30 @@
-package service
+package auth
 
 import (
 	"context"
 	"errors"
 
 	database "github.com/bekasyldev/lumea/internal/database"
-	"github.com/bekasyldev/lumea/internal/repository"
 	token "github.com/bekasyldev/lumea/internal/token"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var ErrInvalidCredentials = errors.New("invalid email or password")
 
-func (s *UserService) Register(ctx context.Context, username, password string) (database.CreateUserRow, error) {
+type authStore interface {
+	Create(ctx context.Context, params database.CreateUserParams) (database.CreateUserRow, error)
+	Get(ctx context.Context, username string) (database.GetUserByUsernameRow, error)
+}
+
+type Service struct {
+	repo authStore
+}
+
+func NewService(repo authStore) *Service {
+	return &Service{repo: repo}
+}
+
+func (s *Service) Register(ctx context.Context, username, password string) (database.CreateUserRow, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return database.CreateUserRow{}, err
@@ -24,10 +36,10 @@ func (s *UserService) Register(ctx context.Context, username, password string) (
 	})
 }
 
-func (s *UserService) Login(ctx context.Context, username, password string) (token.TokenPair, error) {
-	user, err := s.repo.GetByUsername(ctx, username)
+func (s *Service) Login(ctx context.Context, username, password string) (token.TokenPair, error) {
+	user, err := s.repo.Get(ctx, username)
 	if err != nil {
-		if errors.Is(err, repository.ErrUserNotFound) {
+		if errors.Is(err, ErrUserNotFound) {
 			return token.TokenPair{}, ErrInvalidCredentials
 		}
 		return token.TokenPair{}, err
