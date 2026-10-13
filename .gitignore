@@ -1,0 +1,11 @@
+# Binaries
+/bin/
+*.exe
+task-api
+
+# Env files with secrets
+.env
+
+# OS / editor
+.DS_Store
+.idea/
