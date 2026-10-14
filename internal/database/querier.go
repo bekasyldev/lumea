@@ -9,9 +9,14 @@ import (
 )
 
 type Querier interface {
+	CreateProduct(ctx context.Context, arg CreateProductParams) error
+	CreateProductVariant(ctx context.Context, arg CreateProductVariantParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	GetProductByID(ctx context.Context, id int64) (Product, error)
 	GetUser(ctx context.Context, id int64) (GetUserRow, error)
 	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
+	ListProductVariants(ctx context.Context, productID int64) ([]ProductVariant, error)
+	ListProducts(ctx context.Context) ([]Product, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/bekasyldev/lumea/internal/auth"
 	database "github.com/bekasyldev/lumea/internal/database"
+	"github.com/bekasyldev/lumea/internal/product"
 	"github.com/bekasyldev/lumea/internal/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -30,6 +31,10 @@ func (app *application) mount() http.Handler {
 	authService := auth.NewService(authRepo)
 	authHandler := auth.NewAuthHandler(authService)
 
+	productRepo := product.NewRepository(queries)
+	productService := product.NewService(productRepo)
+	productHandler := product.NewHandler(productService)
+
 	// public routes
 	r.Group(func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +49,10 @@ func (app *application) mount() http.Handler {
 		r.Use(app.requireAuth)
 		r.Get("/users", userHandler.List)
 		r.Get("/users/{id}", userHandler.GetByID)
+		r.Get("/products", productHandler.ListProducts)
+		r.Post("/products", productHandler.CreateProduct)
+		r.Get("/products/{id}/variants", productHandler.ListProductVariants)
+		r.Post("/products/{id}/variants", productHandler.CreateProductVariant)
 	})
 
 	return r

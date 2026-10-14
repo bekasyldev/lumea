@@ -53,6 +53,28 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type Product struct {
+	ID          int64
+	Name        string
+	Slug        string
+	Description string
+	IsActive    bool
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type ProductVariant struct {
+	ID              int64
+	ProductID       int64
+	Name            string
+	Price           int64
+	WholesalePrice  pgtype.Int8
+	WholesaleMinQty pgtype.Int4
+	IsActive        bool
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
 type User struct {
 	ID             int64
 	Username       string
