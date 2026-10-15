@@ -6,7 +6,8 @@ SELECT
     description,
     is_active,
     created_at,
-    updated_at
+    updated_at,
+    category_id
 FROM products
 ORDER BY created_at;
 
@@ -18,7 +19,8 @@ SELECT
     description,
     is_active,
     created_at,
-    updated_at
+    updated_at,
+    category_id
 FROM products
 WHERE id = $1;
 
@@ -40,11 +42,12 @@ ORDER BY created_at;
 
 -- name: CreateProduct :exec
 INSERT INTO products (
+    category_id,
     name, 
     slug, 
     description, 
     is_active
-) VALUES($1, $2, $3, $4);
+) VALUES($1, $2, $3, $4, $5);
 
 
 -- name: CreateProductVariant :exec

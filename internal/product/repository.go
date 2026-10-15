@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	ErrSlugTaken       = errors.New("slug should be unique")
-	ErrProductNotFound = errors.New("product did not exist")
+	ErrSlugTaken        = errors.New("slug should be unique")
+	ErrProductNotFound  = errors.New("product did not exist")
+	ErrCategoryNotFound = errors.New("category did not exist")
 )
 
 type Repository struct {
@@ -51,8 +52,13 @@ func (r *Repository) CreateProduct(ctx context.Context, productParams database.C
 	err := r.q.CreateProduct(ctx, productParams)
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return ErrSlugTaken
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case "23505": // unique violation
+				return ErrSlugTaken
+			case "23503": // foreign key violation
+				return ErrCategoryNotFound
+			}
 		}
 		return err
 	}

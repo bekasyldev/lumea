@@ -13,14 +13,16 @@ import (
 
 const createProduct = `-- name: CreateProduct :exec
 INSERT INTO products (
+    category_id,
     name, 
     slug, 
     description, 
     is_active
-) VALUES($1, $2, $3, $4)
+) VALUES($1, $2, $3, $4, $5)
 `
 
 type CreateProductParams struct {
+	CategoryID  pgtype.Int8
 	Name        string
 	Slug        string
 	Description string
@@ -29,6 +31,7 @@ type CreateProductParams struct {
 
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) error {
 	_, err := q.db.Exec(ctx, createProduct,
+		arg.CategoryID,
 		arg.Name,
 		arg.Slug,
 		arg.Description,
@@ -77,7 +80,8 @@ SELECT
     description,
     is_active,
     created_at,
-    updated_at
+    updated_at,
+    category_id
 FROM products
 WHERE id = $1
 `
@@ -93,6 +97,7 @@ func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error)
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
@@ -151,7 +156,8 @@ SELECT
     description,
     is_active,
     created_at,
-    updated_at
+    updated_at,
+    category_id
 FROM products
 ORDER BY created_at
 `
@@ -173,6 +179,7 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}

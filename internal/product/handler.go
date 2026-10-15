@@ -63,6 +63,10 @@ func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 			http.Error(w, "slug alreday in use", http.StatusBadRequest)
 			return
+		case errors.Is(err, ErrCategoryNotFound):
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		default:
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

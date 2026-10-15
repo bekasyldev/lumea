@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/bekasyldev/lumea/internal/auth"
+	"github.com/bekasyldev/lumea/internal/categories"
 	database "github.com/bekasyldev/lumea/internal/database"
 	"github.com/bekasyldev/lumea/internal/product"
 	"github.com/bekasyldev/lumea/internal/user"
@@ -35,6 +36,10 @@ func (app *application) mount() http.Handler {
 	productService := product.NewService(productRepo)
 	productHandler := product.NewHandler(productService)
 
+	categoryRepo := categories.NewRepository(queries)
+	categoryService := categories.NewService(categoryRepo)
+	categoryHandler := categories.NewHandler(categoryService)
+
 	// public routes
 	r.Group(func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +58,12 @@ func (app *application) mount() http.Handler {
 		r.Post("/products", productHandler.CreateProduct)
 		r.Get("/products/{id}/variants", productHandler.ListProductVariants)
 		r.Post("/products/{id}/variants", productHandler.CreateProductVariant)
+		r.Get("/categories", categoryHandler.ListCategories)
+		r.Post("/categories", categoryHandler.CreateCategory)
+		r.Get("/categories/{id}", categoryHandler.GetCategoryByID)
+		r.Get("/categories/slug/{slug}", categoryHandler.GetCategoryBySlug)
+		r.Put("/categories/{id}", categoryHandler.UpdateCategory)
+		r.Delete("/categories/{id}", categoryHandler.DeleteCategory)
 	})
 
 	return r
