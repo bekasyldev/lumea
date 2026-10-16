@@ -61,6 +61,27 @@ type Category struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type Order struct {
+	ID            int64
+	CustomerName  string
+	CustomerPhone string
+	Comment       pgtype.Text
+	TotalPrice    int64
+	Status        string
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type OrderItem struct {
+	ID               int64
+	OrderID          int64
+	ProductVariantID int64
+	ProductName      string
+	VariantName      string
+	Quantity         int32
+	UnitPrice        int64
+}
+
 type Product struct {
 	ID          int64
 	Name        string

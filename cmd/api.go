@@ -8,6 +8,7 @@ import (
 	"github.com/bekasyldev/lumea/internal/auth"
 	"github.com/bekasyldev/lumea/internal/categories"
 	database "github.com/bekasyldev/lumea/internal/database"
+	"github.com/bekasyldev/lumea/internal/orders"
 	"github.com/bekasyldev/lumea/internal/product"
 	"github.com/bekasyldev/lumea/internal/user"
 	"github.com/go-chi/chi/v5"
@@ -40,6 +41,10 @@ func (app *application) mount() http.Handler {
 	categoryService := categories.NewService(categoryRepo)
 	categoryHandler := categories.NewHandler(categoryService)
 
+	orderRepo := orders.NewRepository(app.db, queries)
+	orderService := orders.NewService(orderRepo)
+	orderHandler := orders.NewHandler(orderService)
+
 	// public routes
 	r.Group(func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +69,13 @@ func (app *application) mount() http.Handler {
 		r.Get("/categories/slug/{slug}", categoryHandler.GetCategoryBySlug)
 		r.Put("/categories/{id}", categoryHandler.UpdateCategory)
 		r.Delete("/categories/{id}", categoryHandler.DeleteCategory)
+		r.Get("/orders", orderHandler.ListOrders)
+		r.Post("/orders", orderHandler.CreateOrder)
+		r.Get("/orders/{id}", orderHandler.GetOrderByID)
+		r.Put("/orders/{id}", orderHandler.UpdateOrder)
+		r.Patch("/orders/{id}/status", orderHandler.UpdateOrderStatus)
+		r.Delete("/orders/{id}", orderHandler.DeleteOrder)
+		r.Delete("/orders/{id}/items/{itemId}", orderHandler.DeleteOrderItem)
 	})
 
 	return r

@@ -9,21 +9,34 @@ import (
 )
 
 type Querier interface {
+	CountOrderItems(ctx context.Context, orderID int64) (int64, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error)
+	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
+	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error)
 	CreateProduct(ctx context.Context, arg CreateProductParams) error
 	CreateProductVariant(ctx context.Context, arg CreateProductVariantParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	DeleteCategory(ctx context.Context, id int64) (int64, error)
+	DeleteOrder(ctx context.Context, id int64) (int64, error)
+	DeleteOrderItem(ctx context.Context, arg DeleteOrderItemParams) (int64, error)
 	GetCategoryByID(ctx context.Context, id int64) (Category, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (Category, error)
+	GetOrderByID(ctx context.Context, id int64) (Order, error)
 	GetProductByID(ctx context.Context, id int64) (Product, error)
 	GetUser(ctx context.Context, id int64) (GetUserRow, error)
 	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
+	GetVariantsForOrder(ctx context.Context, ids []int64) ([]GetVariantsForOrderRow, error)
 	ListCategories(ctx context.Context) ([]Category, error)
+	ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]OrderItem, error)
+	ListOrders(ctx context.Context) ([]Order, error)
 	ListProductVariants(ctx context.Context, productID int64) ([]ProductVariant, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
+	LockOrderForUpdate(ctx context.Context, id int64) (int64, error)
+	RecalculateOrderTotal(ctx context.Context, orderID int64) (int64, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (int64, error)
+	UpdateOrder(ctx context.Context, arg UpdateOrderParams) (int64, error)
+	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)
