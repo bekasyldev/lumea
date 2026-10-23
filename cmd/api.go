@@ -8,9 +8,12 @@ import (
 	"github.com/bekasyldev/lumea/internal/auth"
 	"github.com/bekasyldev/lumea/internal/categories"
 	database "github.com/bekasyldev/lumea/internal/database"
+	"github.com/bekasyldev/lumea/internal/media"
+	"github.com/bekasyldev/lumea/internal/media/s3store"
 	"github.com/bekasyldev/lumea/internal/orders"
 	"github.com/bekasyldev/lumea/internal/product"
 	"github.com/bekasyldev/lumea/internal/user"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5"
@@ -45,6 +48,10 @@ func (app *application) mount() http.Handler {
 	orderService := orders.NewService(orderRepo)
 	orderHandler := orders.NewHandler(orderService)
 
+	mediaRepo := media.NewRepository(queries)
+	mediaService := media.NewService(app.storage, mediaRepo)
+	mediaHandler := media.NewHandler(mediaService)
+
 	// public routes
 	r.Group(func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -63,6 +70,10 @@ func (app *application) mount() http.Handler {
 		r.Post("/products", productHandler.CreateProduct)
 		r.Get("/products/{id}/variants", productHandler.ListProductVariants)
 		r.Post("/products/{id}/variants", productHandler.CreateProductVariant)
+		r.Get("/products/{id}/images", mediaHandler.GetListProductImages)
+		r.Get("/products/{id}/variants/{variantId}/images", mediaHandler.GetListVariantImages)
+		r.Post("/images", mediaHandler.UploadImage)
+		r.Delete("/images/{id}", mediaHandler.DeleteImage)
 		r.Get("/categories", categoryHandler.ListCategories)
 		r.Post("/categories", categoryHandler.CreateCategory)
 		r.Get("/categories/{id}", categoryHandler.GetCategoryByID)
@@ -96,13 +107,15 @@ func (app *application) run(h http.Handler) error {
 }
 
 type application struct {
-	config config
-	db     *pgx.Conn
+	config  config
+	db      *pgx.Conn
+	storage *s3store.Store
 }
 
 type config struct {
 	addr string
 	db   dbConfig
+	s3   s3store.Config
 }
 
 type dbConfig struct {

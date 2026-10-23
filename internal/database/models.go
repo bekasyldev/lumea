@@ -93,6 +93,16 @@ type Product struct {
 	CategoryID  pgtype.Int8
 }
 
+type ProductImage struct {
+	ID          int64
+	ProductID   int64
+	VariantID   pgtype.Int8
+	S3Key       string
+	ContentType string
+	Position    int32
+	CreatedAt   pgtype.Timestamptz
+}
+
 type ProductVariant struct {
 	ID              int64
 	ProductID       int64
