@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/bekasyldev/lumea/internal/token"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 type contextKey string
@@ -28,12 +26,7 @@ func (app *application) requireAuth(next http.Handler) http.Handler {
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &token.Claims{}
 
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-			}
-			return jwtSecret, nil
-		})
+		token, err := token.ValidateToken(tokenString, claims)
 
 		if err != nil || !token.Valid {
 			http.Error(w, "invalid or expired token", http.StatusUnauthorized)

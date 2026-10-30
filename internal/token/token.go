@@ -1,6 +1,7 @@
 package token
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -40,4 +41,13 @@ func IssueRefreshToken(username string) (string, error) {
 	}
 
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(jwtSecret)
+}
+
+func ValidateToken(tokenString string, claims *Claims) (*jwt.Token, error) {
+	return jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
 }

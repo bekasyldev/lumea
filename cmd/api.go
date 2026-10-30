@@ -59,6 +59,7 @@ func (app *application) mount() http.Handler {
 		})
 		r.Post("/register", authHandler.Register)
 		r.Post("/login", authHandler.Login)
+		r.Post("/auth/refresh", authHandler.RefreshToken)
 	})
 
 	// private routes (require a valid JWT)

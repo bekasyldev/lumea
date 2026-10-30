@@ -9,7 +9,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrInvalidCredentials = errors.New("invalid email or password")
+var ErrInvalidCredentials = errors.New("invalid username or password")
+var ErrInvalidRefreshToken = errors.New("invalid or expired refresh token")
 
 type authStore interface {
 	Create(ctx context.Context, params database.CreateUserParams) (database.CreateUserRow, error)
@@ -60,4 +61,26 @@ func (s *Service) Login(ctx context.Context, username, password string) (token.T
 	}
 
 	return token.TokenPair{AccessToken: accessToken, RefreshToken: refreshToken}, nil
+}
+
+func (s *Service) Refresh(ctx context.Context, refreshToken string) (string, error) {
+	claims := &token.Claims{}
+	parsed, err := token.ValidateToken(refreshToken, claims)
+	if err != nil || !parsed.Valid {
+		return "", ErrInvalidRefreshToken
+	}
+
+	if claims.Role != "" || claims.Subject == "" {
+		return "", ErrInvalidRefreshToken
+	}
+
+	user, err := s.repo.Get(ctx, claims.Subject)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			return "", ErrInvalidRefreshToken
+		}
+		return "", err
+	}
+
+	return token.IssueAccessToken(user.Username, string(user.Role))
 }
