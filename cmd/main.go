@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/bekasyldev/lumea/internal/media/s3store"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -29,11 +29,11 @@ func main() {
 		},
 	}
 
-	conn, err := pgx.Connect(ctx, cfg.db.dsn)
+	pool, err := pgxpool.New(ctx, cfg.db.dsn)
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close(ctx)
+	defer pool.Close()
 
 	logger.Info("connected to database", "dsn", os.Getenv("DATABASE_URL"))
 
@@ -45,7 +45,7 @@ func main() {
 
 	api := application{
 		config:  cfg,
-		db:      conn,
+		db:      pool,
 		storage: store,
 	}
 
