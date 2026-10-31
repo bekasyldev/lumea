@@ -12,9 +12,19 @@ import (
 // fakeStore serves a fixed catalog and records what CreateOrder received
 type fakeStore struct {
 	orderStore
-	variants []database.GetVariantsForOrderRow
-	gotOrder database.CreateOrderParams
-	gotItems []database.CreateOrderItemParams
+	variants    []database.GetVariantsForOrderRow
+	gotOrder    database.CreateOrderParams
+	gotItems    []database.CreateOrderItemParams
+	statusCalls []database.UpdateOrderStatusParams
+}
+
+func variant(price int64, wholesale int64, minQty int32) database.GetVariantsForOrderRow {
+	v := database.GetVariantsForOrderRow{Price: price}
+	if minQty > 0 {
+		v.WholesalePrice = pgtype.Int8{Int64: wholesale, Valid: true}
+		v.WholesaleMinQty = pgtype.Int4{Int32: minQty, Valid: true}
+	}
+	return v
 }
 
 func (f *fakeStore) GetVariants(_ context.Context, ids []int64) ([]database.GetVariantsForOrderRow, error) {
@@ -27,6 +37,11 @@ func (f *fakeStore) GetVariants(_ context.Context, ids []int64) ([]database.GetV
 		}
 	}
 	return out, nil
+}
+
+func (f *fakeStore) UpdateOrderStatus(_ context.Context, p database.UpdateOrderStatusParams) error {
+	f.statusCalls = append(f.statusCalls, p)
+	return nil
 }
 
 func (f *fakeStore) CreateOrder(_ context.Context, o database.CreateOrderParams, items []database.CreateOrderItemParams) (OrderDetails, error) {
@@ -99,6 +114,61 @@ func TestCreateOrderRejectsBadItems(t *testing.T) {
 			})
 			if !errors.Is(err, tt.want) {
 				t.Errorf("err = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestUnitPrice(t *testing.T) {
+	tests := []struct {
+		name string
+		v    database.GetVariantsForOrderRow
+		qty  int32
+		want int64
+	}{
+		{"no wholesale pricing", variant(600, 0, 0), 1000, 600},
+		{"min qty not valid, even if qty is high", database.GetVariantsForOrderRow{Price: 600, WholesaleMinQty: pgtype.Int4{Int32: 30, Valid: false}}, 20, 600},
+		{"below minimum", variant(600, 200, 8), 7, 600},
+		{"exactly at minimum", variant(600, 200, 8), 8, 200},
+		{"above minimum", variant(600, 200, 8), 50, 200},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := unitPrice(tt.v, tt.qty); got != tt.want {
+				t.Errorf("unitPrice() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUpdateOrderStatus(t *testing.T) {
+	tests := []struct {
+		status  string
+		wantErr error
+	}{
+		{"pending", nil},
+		{"confirmed", nil},
+		{"shipped", nil},
+		{"delivered", nil},
+		{"cancelled", nil},
+		{"refunded", ErrInvalidStatus},
+		{"", ErrInvalidStatus},
+	}
+	for _, tt := range tests {
+		t.Run(tt.status, func(t *testing.T) {
+			store := &fakeStore{}
+			err := NewService(store).UpdateOrderStatus(context.Background(),
+				database.UpdateOrderStatusParams{ID: 1, Status: tt.status})
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			wantCalls := 0
+			if tt.wantErr == nil {
+				wantCalls = 1
+			}
+			if len(store.statusCalls) != wantCalls {
+				t.Errorf("store calls = %d, want %d", len(store.statusCalls), wantCalls)
 			}
 		})
 	}
