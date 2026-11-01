@@ -46,8 +46,8 @@ I chose chi as a framework because it is widely used and I had already created a
 ## To-do list
 Here I will list the things I need to finish.
 
-- [ ] Tests (unit and integration)
-- [ ] Atomic order creation with transactions and stock locking
+- [x] Tests (unit and integration)
+- [x] Atomic order creation with transactions and stock locking
 - [ ] Context, timeouts, and graceful shutdown
 - [ ] Structured logging and metrics
 - [ ] Rate limiting, validation, and pagination

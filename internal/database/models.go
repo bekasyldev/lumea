@@ -113,6 +113,7 @@ type ProductVariant struct {
 	IsActive        bool
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+	Stock           int32
 }
 
 type User struct {

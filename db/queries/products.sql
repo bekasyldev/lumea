@@ -35,7 +35,8 @@ SELECT
     wholesale_min_qty,
     is_active,
     created_at,
-    updated_at
+    updated_at,
+    stock
 FROM product_variants
 WHERE product_id = $1
 ORDER BY created_at;

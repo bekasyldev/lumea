@@ -200,6 +200,8 @@ func writeError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, ErrLastOrderItem):
 		http.Error(w, err.Error(), http.StatusConflict)
+	case errors.Is(err, ErrInsufficientStock):
+		http.Error(w, err.Error(), http.StatusConflict)
 	default:
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}

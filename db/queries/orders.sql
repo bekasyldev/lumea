@@ -24,6 +24,18 @@ SELECT
 FROM orders
 WHERE id = $1;
 
+-- name: GetOrderItemByID :one
+SELECT
+    id,
+    order_id,
+    product_variant_id,
+    product_name,
+    variant_name,
+    quantity,
+    unit_price
+FROM order_items
+WHERE id = $1;
+
 -- name: ListOrderItemsByOrderID :many
 SELECT
     id,
@@ -98,6 +110,15 @@ UPDATE orders
 SET status = $2, updated_at = now()
 WHERE id = $1;
 
+-- name: DecreaseVariantStock :execrows
+UPDATE product_variants
+SET stock = stock - $2
+WHERE id = $1 AND stock >= $2;
+
+-- name: ReturnVariantToStock :exec
+UPDATE product_variants
+SET stock = stock + $2
+WHERE id = $1;
 
 -- name: LockOrderForUpdate :one
 SELECT id
@@ -128,3 +149,5 @@ WHERE id = $1 AND order_id = $2;
 -- name: DeleteOrder :execrows
 DELETE FROM orders
 WHERE id = $1;
+
+

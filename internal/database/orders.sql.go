@@ -120,6 +120,25 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 	return i, err
 }
 
+const decreaseVariantStock = `-- name: DecreaseVariantStock :execrows
+UPDATE product_variants
+SET stock = stock - $2
+WHERE id = $1 AND stock >= $2
+`
+
+type DecreaseVariantStockParams struct {
+	ID    int64
+	Stock int32
+}
+
+func (q *Queries) DecreaseVariantStock(ctx context.Context, arg DecreaseVariantStockParams) (int64, error) {
+	result, err := q.db.Exec(ctx, decreaseVariantStock, arg.ID, arg.Stock)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteOrder = `-- name: DeleteOrder :execrows
 DELETE FROM orders
 WHERE id = $1
@@ -177,6 +196,34 @@ func (q *Queries) GetOrderByID(ctx context.Context, id int64) (Order, error) {
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getOrderItemByID = `-- name: GetOrderItemByID :one
+SELECT
+    id,
+    order_id,
+    product_variant_id,
+    product_name,
+    variant_name,
+    quantity,
+    unit_price
+FROM order_items
+WHERE id = $1
+`
+
+func (q *Queries) GetOrderItemByID(ctx context.Context, id int64) (OrderItem, error) {
+	row := q.db.QueryRow(ctx, getOrderItemByID, id)
+	var i OrderItem
+	err := row.Scan(
+		&i.ID,
+		&i.OrderID,
+		&i.ProductVariantID,
+		&i.ProductName,
+		&i.VariantName,
+		&i.Quantity,
+		&i.UnitPrice,
 	)
 	return i, err
 }
@@ -347,6 +394,22 @@ func (q *Queries) RecalculateOrderTotal(ctx context.Context, orderID int64) (int
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const returnVariantToStock = `-- name: ReturnVariantToStock :exec
+UPDATE product_variants
+SET stock = stock + $2
+WHERE id = $1
+`
+
+type ReturnVariantToStockParams struct {
+	ID    int64
+	Stock int32
+}
+
+func (q *Queries) ReturnVariantToStock(ctx context.Context, arg ReturnVariantToStockParams) error {
+	_, err := q.db.Exec(ctx, returnVariantToStock, arg.ID, arg.Stock)
+	return err
 }
 
 const updateOrder = `-- name: UpdateOrder :execrows

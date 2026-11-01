@@ -14,17 +14,21 @@ type Querier interface {
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error)
 	CreateProduct(ctx context.Context, arg CreateProductParams) error
+	// new image goes to the end of the gallery (max position + 1 or 0)
 	CreateProductImage(ctx context.Context, arg CreateProductImageParams) (ProductImage, error)
 	CreateProductVariant(ctx context.Context, arg CreateProductVariantParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	DecreaseVariantStock(ctx context.Context, arg DecreaseVariantStockParams) (int64, error)
 	DeleteCategory(ctx context.Context, id int64) (int64, error)
 	DeleteOrder(ctx context.Context, id int64) (int64, error)
 	DeleteOrderItem(ctx context.Context, arg DeleteOrderItemParams) (int64, error)
+	// returns the key so the service can delete the file from S3
 	DeleteProductImage(ctx context.Context, id int64) (string, error)
 	GetCategoryByID(ctx context.Context, id int64) (Category, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (Category, error)
 	GetMainProductImage(ctx context.Context, productID int64) (ProductImage, error)
 	GetOrderByID(ctx context.Context, id int64) (Order, error)
+	GetOrderItemByID(ctx context.Context, id int64) (OrderItem, error)
 	GetProductByID(ctx context.Context, id int64) (Product, error)
 	GetProductImageByID(ctx context.Context, id int64) (ProductImage, error)
 	GetUser(ctx context.Context, id int64) (GetUserRow, error)
@@ -38,9 +42,11 @@ type Querier interface {
 	ListProductVariants(ctx context.Context, productID int64) ([]ProductVariant, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
+	// images of the variant + shared images of its product
 	ListVariantImages(ctx context.Context, arg ListVariantImagesParams) ([]ProductImage, error)
 	LockOrderForUpdate(ctx context.Context, id int64) (int64, error)
 	RecalculateOrderTotal(ctx context.Context, orderID int64) (int64, error)
+	ReturnVariantToStock(ctx context.Context, arg ReturnVariantToStockParams) error
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (int64, error)
 	UpdateOrder(ctx context.Context, arg UpdateOrderParams) (int64, error)
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (int64, error)

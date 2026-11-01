@@ -15,6 +15,7 @@ var (
 	ErrVariantNotFound   = errors.New("product variant did not exist")
 	ErrDuplicateVariant  = errors.New("product variant appears more than once in order")
 	ErrLastOrderItem     = errors.New("cannot delete the last item of an order, delete the order instead")
+	ErrInsufficientStock = errors.New("stock number is less than order quantity")
 )
 
 // for transaction operations(all or nothing)
@@ -84,6 +85,19 @@ func (r *Repository) CreateOrder(ctx context.Context, orderParams database.Creat
 
 	qtx := r.q.WithTx(tx)
 
+	// atomic update
+	for _, orderItem := range items {
+		var params = database.DecreaseVariantStockParams{ID: orderItem.ProductVariantID, Stock: orderItem.Quantity}
+		rows, err := qtx.DecreaseVariantStock(ctx, params)
+		if err != nil {
+			return OrderDetails{}, err
+		}
+
+		if rows == 0 {
+			return OrderDetails{}, ErrInsufficientStock
+		}
+	}
+
 	order, err := qtx.CreateOrder(ctx, orderParams)
 	if err != nil {
 		return OrderDetails{}, err
@@ -119,12 +133,78 @@ func (r *Repository) UpdateOrder(ctx context.Context, orderParams database.Updat
 }
 
 func (r *Repository) UpdateOrderStatus(ctx context.Context, statusParams database.UpdateOrderStatusParams) error {
-	rows, err := r.q.UpdateOrderStatus(ctx, statusParams)
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback(ctx)
+
+	qtx := r.q.WithTx(tx)
+
+	// lock the order row
+	if _, err := qtx.LockOrderForUpdate(ctx, statusParams.ID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrOrderNotFound
+		}
+		return err
+	}
+
+	order, err := qtx.GetOrderByID(ctx, statusParams.ID)
+	if err != nil {
+		return err
+	}
+
+	// oldStatus == newStatus
+	if OrderStatus(statusParams.Status) == OrderStatus(order.Status) {
+		return nil
+	}
+
+	// if status moved from cancelled to another then decrease stock
+	if OrderStatus(order.Status) == StatusCancelled {
+		orderItems, err := qtx.ListOrderItemsByOrderID(ctx, statusParams.ID)
+		if err != nil {
+			return err
+		}
+
+		for _, o := range orderItems {
+			var params = database.DecreaseVariantStockParams{ID: o.ProductVariantID, Stock: o.Quantity}
+			rows, err := qtx.DecreaseVariantStock(ctx, params)
+			if err != nil {
+				return err
+			}
+
+			if rows == 0 {
+				return ErrInsufficientStock
+			}
+		}
+	}
+
+	rows, err := qtx.UpdateOrderStatus(ctx, statusParams)
 	if err != nil {
 		return err
 	}
 	if rows == 0 {
 		return ErrOrderNotFound
+	}
+
+	// return to the stock if status cancelled
+	if OrderStatus(statusParams.Status) == StatusCancelled {
+		ordersItems, err := qtx.ListOrderItemsByOrderID(ctx, statusParams.ID)
+		if err != nil {
+			return err
+		}
+
+		for _, o := range ordersItems {
+			var params = database.ReturnVariantToStockParams{ID: o.ProductVariantID, Stock: o.Quantity}
+			if err := qtx.ReturnVariantToStock(ctx, params); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
 	}
 
 	return nil
@@ -145,6 +225,35 @@ func (r *Repository) DeleteOrderItem(ctx context.Context, itemParams database.De
 			return ErrOrderNotFound
 		}
 		return err
+	}
+
+	orderItem, err := qtx.GetOrderItemByID(ctx, itemParams.ID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrOrderItemNotFound
+		}
+		return err
+	}
+
+	if orderItem.OrderID != itemParams.OrderID {
+		return ErrOrderItemNotFound
+	}
+
+	order, err := qtx.GetOrderByID(ctx, itemParams.OrderID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrOrderNotFound
+		}
+
+		return err
+	}
+
+	// if order cancelled it already retunred variant to the stock
+	if OrderStatus(order.Status) != StatusCancelled {
+		var params = database.ReturnVariantToStockParams{ID: orderItem.ProductVariantID, Stock: orderItem.Quantity}
+		if err := qtx.ReturnVariantToStock(ctx, params); err != nil {
+			return err
+		}
 	}
 
 	rows, err := qtx.DeleteOrderItem(ctx, itemParams)
