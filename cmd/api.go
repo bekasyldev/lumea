@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -95,7 +97,7 @@ func (app *application) mount() http.Handler {
 	return r
 }
 
-func (app *application) run(h http.Handler) error {
+func (app *application) run(ctx context.Context, h http.Handler) error {
 	srv := &http.Server{
 		Addr:         app.config.addr,
 		Handler:      h,
@@ -104,9 +106,29 @@ func (app *application) run(h http.Handler) error {
 		IdleTimeout:  time.Minute,
 	}
 
-	log.Printf("server has started at add %s", app.config.addr)
+	errCh := make(chan error, 1)
 
-	return srv.ListenAndServe()
+	go func() {
+		log.Printf("server has started at add %s", app.config.addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	select {
+	case err := <-errCh: // server failed on its own
+		return err
+	case <-ctx.Done(): // SIGINT/SINGTERM  from main
+	}
+
+	slog.Info("shutdown signal received, draining...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	return srv.Shutdown(shutdownCtx)
+
 }
 
 type application struct {

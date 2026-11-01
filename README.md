@@ -48,6 +48,6 @@ Here I will list the things I need to finish.
 
 - [x] Tests (unit and integration)
 - [x] Atomic order creation with transactions and stock locking
-- [ ] Context, timeouts, and graceful shutdown
+- [x] Context, timeouts, and graceful shutdown
 - [ ] Structured logging and metrics
 - [ ] Rate limiting, validation, and pagination

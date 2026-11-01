@@ -4,13 +4,17 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/bekasyldev/lumea/internal/media/s3store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
-	ctx := context.Background()
+	// os.Interrupt equal to syscal.SIGINT
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -35,7 +39,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	logger.Info("connected to database", "dsn", os.Getenv("DATABASE_URL"))
+	logger.Info("connected to database")
 
 	store, err := s3store.New(ctx, cfg.s3)
 
@@ -49,8 +53,10 @@ func main() {
 		storage: store,
 	}
 
-	if err := api.run(api.mount()); err != nil {
+	if err := api.run(ctx, api.mount()); err != nil {
 		slog.Error("server is failed to start", "error", err)
 		os.Exit(1)
 	}
+
+	logger.Info("server stopped gracefully")
 }
