@@ -2,12 +2,12 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 
 	database "github.com/bekasyldev/lumea/internal/database"
+	"github.com/bekasyldev/lumea/internal/json"
 	"github.com/bekasyldev/lumea/internal/token"
 )
 
@@ -25,52 +25,55 @@ func NewAuthHandler(svc AuthService) *AuthHandler {
 	return &AuthHandler{svc: svc}
 }
 
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var u database.CreateUserParams
+type credentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
 
-	err := json.NewDecoder(r.Body).Decode((&u))
-	if err != nil {
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var c credentials
+	if err := json.Read(r, &c); err != nil {
+		slog.WarnContext(ctx, "register: invalid request body", "err", err)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	createUser, err := h.svc.Register(r.Context(), u.Username, u.HashedPassword)
+	createUser, err := h.svc.Register(ctx, c.Username, c.Password)
 	if err != nil {
 		if errors.Is(err, ErrUsernameTaken) {
-			log.Println(err)
+			slog.WarnContext(ctx, "register: username taken", "username", c.Username)
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "register: create user failed", "err", err, "username", c.Username)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(createUser)
+	json.Write(w, http.StatusCreated, createUser)
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var u database.CreateUserParams
+	ctx := r.Context()
 
-	err := json.NewDecoder(r.Body).Decode(&u)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	var c credentials
+	if err := json.Read(r, &c); err != nil {
+		slog.WarnContext(ctx, "login: invalid request body", "err", err)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	tokenPair, err := h.svc.Login(r.Context(), u.Username, u.HashedPassword)
+	tokenPair, err := h.svc.Login(ctx, c.Username, c.Password)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
-			log.Println(err)
+			slog.WarnContext(ctx, "login: invalid credentials", "err", err, "username", c.Username)
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "login: failed", "err", err, "username", c.Username)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -85,30 +88,30 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/auth/refresh",
 	})
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(token.TokenPair{AccessToken: tokenPair.AccessToken})
+	json.Write(w, http.StatusOK, token.TokenPair{AccessToken: tokenPair.AccessToken})
 }
 
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
+		slog.WarnContext(ctx, "token: missing refresh token", "err", err)
 		http.Error(w, "missing refresh token", http.StatusUnauthorized)
 		return
 	}
 
-	accessToken, err := h.svc.Refresh(r.Context(), cookie.Value)
+	accessToken, err := h.svc.Refresh(ctx, cookie.Value)
 	if err != nil {
 		if errors.Is(err, ErrInvalidRefreshToken) {
+			slog.WarnContext(ctx, "token: invalid refresh token", "err", err)
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "token: refresh failed", "err", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(token.TokenPair{AccessToken: accessToken})
+	json.Write(w, http.StatusOK, token.TokenPair{AccessToken: accessToken})
 }

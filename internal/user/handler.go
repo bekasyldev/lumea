@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -29,18 +29,19 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	userId := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(userId, 10, 64)
 	if err != nil {
-		log.Println(err)
+		slog.WarnContext(r.Context(), "user: invalid user id", "err", err)
 		http.Error(w, "invalid user id", http.StatusBadRequest)
 		return
 	}
 
 	user, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
-		log.Println(err)
 		switch {
 		case errors.Is(err, ErrUserNotFound):
+			slog.WarnContext(r.Context(), "user: not found", "err", err, "user_id", id)
 			http.Error(w, err.Error(), http.StatusNotFound)
 		default:
+			slog.ErrorContext(r.Context(), "user: get failed", "err", err, "user_id", id)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 		return
@@ -54,7 +55,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	users, err := h.svc.List(r.Context())
 	if err != nil {
-		log.Println(err)
+		slog.ErrorContext(r.Context(), "user: list failed", "err", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}

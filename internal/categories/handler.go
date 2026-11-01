@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -33,7 +33,7 @@ func NewHandler(svc CategoryService) *Handler {
 func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.svc.ListCategories(r.Context())
 	if err != nil {
-		log.Println(err)
+		slog.ErrorContext(r.Context(), "categories: list failed", "err", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -47,14 +47,14 @@ func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetCategoryByID(w http.ResponseWriter, r *http.Request) {
 	categoryId, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		log.Println(err)
+		slog.WarnContext(r.Context(), "categories: invalid category id", "err", err)
 		http.Error(w, "invalid category id", http.StatusBadRequest)
 		return
 	}
 
 	category, err := h.svc.GetCategoryByID(r.Context(), categoryId)
 	if err != nil {
-		writeError(w, err)
+		writeError(w, r, err)
 		return
 	}
 
@@ -67,7 +67,7 @@ func (h *Handler) GetCategoryByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetCategoryBySlug(w http.ResponseWriter, r *http.Request) {
 	category, err := h.svc.GetCategoryBySlug(r.Context(), chi.URLParam(r, "slug"))
 	if err != nil {
-		writeError(w, err)
+		writeError(w, r, err)
 		return
 	}
 
@@ -82,14 +82,14 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&categoryParams)
 	if err != nil {
-		log.Println(err)
+		slog.WarnContext(r.Context(), "categories: invalid request body", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	category, err := h.svc.CreateCategory(r.Context(), categoryParams)
 	if err != nil {
-		writeError(w, err)
+		writeError(w, r, err)
 		return
 	}
 
@@ -102,7 +102,7 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	categoryId, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		log.Println(err)
+		slog.WarnContext(r.Context(), "categories: invalid category id", "err", err)
 		http.Error(w, "invalid category id", http.StatusBadRequest)
 		return
 	}
@@ -111,7 +111,7 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 
 	err = json.NewDecoder(r.Body).Decode(&categoryParams)
 	if err != nil {
-		log.Println(err)
+		slog.WarnContext(r.Context(), "categories: invalid request body", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -120,7 +120,7 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 
 	err = h.svc.UpdateCategory(r.Context(), categoryParams)
 	if err != nil {
-		writeError(w, err)
+		writeError(w, r, err)
 		return
 	}
 
@@ -131,32 +131,36 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 	categoryId, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		log.Println(err)
+		slog.WarnContext(r.Context(), "categories: invalid category id", "err", err)
 		http.Error(w, "invalid category id", http.StatusBadRequest)
 		return
 	}
 
 	err = h.svc.DeleteCategory(r.Context(), categoryId)
 	if err != nil {
-		writeError(w, err)
+		writeError(w, r, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// writeError maps domain errors to http status codes
-func writeError(w http.ResponseWriter, err error) {
-	log.Println(err)
+// writeError maps domain errors to http status codes and logs them:
+// expected domain errors at warn, anything else at error
+func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, ErrNameRequired),
 		errors.Is(err, ErrSlugRequired):
+		slog.WarnContext(r.Context(), "categories: bad request", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	case errors.Is(err, ErrSlugTaken):
+		slog.WarnContext(r.Context(), "categories: slug taken", "err", err)
 		http.Error(w, err.Error(), http.StatusConflict)
 	case errors.Is(err, ErrCategoryNotFound):
+		slog.WarnContext(r.Context(), "categories: not found", "err", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 	default:
+		slog.ErrorContext(r.Context(), "categories: request failed", "err", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }

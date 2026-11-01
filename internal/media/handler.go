@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -52,7 +52,7 @@ func (h *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		log.Println(err)
+		slog.WarnContext(r.Context(), "media: retrieving form file failed", "err", err)
 		http.Error(w, "Error retrieving file", http.StatusBadRequest)
 		return
 	}
@@ -61,21 +61,21 @@ func (h *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	buffer := make([]byte, 512) // to read first bytes and detect file type
 	_, err = file.Read(buffer)
 	if err != nil {
-		log.Println(err)
+		slog.WarnContext(r.Context(), "media: reading file failed", "err", err)
 		http.Error(w, "Error reading file", http.StatusBadRequest)
 		return
 	}
 
 	contentType := http.DetectContentType(buffer)
 	if _, ok := allowedFileTypes[contentType]; !ok {
-		log.Println(err)
+		slog.WarnContext(r.Context(), "media: file type not allowed", "content_type", contentType)
 		http.Error(w, "File type is not allowed", http.StatusBadRequest)
 		return
 	}
 
 	// check uploaded file includes the bytes read for type detection
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		log.Println(err)
+		slog.ErrorContext(r.Context(), "media: seeking file failed", "err", err)
 		http.Error(w, "Error reading file", http.StatusInternalServerError)
 		return
 	}
@@ -105,7 +105,7 @@ func (h *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 
 	productImage, err := h.svc.UploadImage(r.Context(), file, productImageParams)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(w, r, err)
 		return
 	}
 
@@ -123,7 +123,7 @@ func (h *Handler) GetListProductImages(w http.ResponseWriter, r *http.Request) {
 
 	productImages, err := h.svc.GetListProductImages(r.Context(), productId)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(w, r, err)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (h *Handler) GetListVariantImages(w http.ResponseWriter, r *http.Request) {
 		VariantID: variantId,
 	})
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(w, r, err)
 		return
 	}
 
@@ -167,23 +167,26 @@ func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.DeleteImage(r.Context(), imageId); err != nil {
-		writeServiceError(w, err)
+		writeServiceError(w, r, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func writeServiceError(w http.ResponseWriter, err error) {
+func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, ErrImageNotFound):
+		slog.WarnContext(r.Context(), "media: image not found", "err", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, ErrForeignIdNotExists):
+		slog.WarnContext(r.Context(), "media: referenced product or variant not found", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	case errors.Is(err, ErrKeyNotUnique):
+		slog.WarnContext(r.Context(), "media: storage key not unique", "err", err)
 		http.Error(w, err.Error(), http.StatusConflict)
 	default:
-		log.Println(err)
+		slog.ErrorContext(r.Context(), "media: request failed", "err", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }

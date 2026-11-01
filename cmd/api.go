@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"net/http"
 	"time"
@@ -109,7 +108,7 @@ func (app *application) run(ctx context.Context, h http.Handler) error {
 	errCh := make(chan error, 1)
 
 	go func() {
-		log.Printf("server has started at add %s", app.config.addr)
+		slog.Info("server has started at add %s", app.config.addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- err
 		}
