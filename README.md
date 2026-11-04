@@ -49,5 +49,8 @@ Here I will list the things I need to finish.
 - [x] Tests (unit and integration)
 - [x] Atomic order creation with transactions and stock locking
 - [x] Context, timeouts, and graceful shutdown
-- [ ] Structured logging and metrics
+- [x] Structured logging and metrics
+    - Understand difference between metric type and when to use them
+    - Create several custom metrics and monitor them
+    - Run prometheus locally and work with it
 - [ ] Rate limiting, validation, and pagination

@@ -18,15 +18,29 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func (app *application) mount() http.Handler {
 	r := chi.NewRouter()
 
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		httpDuration,
+		httpRequestTotal,
+		orders.OrdersCreatedTotal,
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+	metricHandleFunc := promhttp.HandlerFor(reg, promhttp.HandlerOpts{}).ServeHTTP
+
 	r.Use(middleware.RequestID) // rate limiting
 	r.Use(middleware.RealIP)    // rate limit || analytics || tracing
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer) // recover from crashes
+	r.Use(app.metricMiddlware)
 
 	queries := database.New(app.db) // store connection inside the Queries struct
 	userRepo := user.NewRepository(queries)
@@ -70,6 +84,7 @@ func (app *application) mount() http.Handler {
 		r.Get("/categories/{id}", categoryHandler.GetCategoryByID)
 		r.Get("/categories/slug/{slug}", categoryHandler.GetCategoryBySlug)
 
+		r.Get("/metrics", metricHandleFunc)
 	})
 
 	// private routes (require a valid JWT)
@@ -108,7 +123,7 @@ func (app *application) run(ctx context.Context, h http.Handler) error {
 	errCh := make(chan error, 1)
 
 	go func() {
-		slog.Info("server has started at add %s", app.config.addr)
+		slog.Info("server has started at add", "addr", app.config.addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- err
 		}

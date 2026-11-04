@@ -67,12 +67,14 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
+		OrdersCreatedTotal.WithLabelValues(resultFailure, reasonInvalidBody).Inc()
 		slog.WarnContext(r.Context(), "orders: invalid request body", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	order, err := h.svc.CreateOrder(r.Context(), input)
+	recordOrderCreated(err)
 	if err != nil {
 		writeError(w, r, err)
 		return
