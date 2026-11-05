@@ -2,13 +2,13 @@ package user
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	database "github.com/bekasyldev/lumea/internal/database"
+	"github.com/bekasyldev/lumea/internal/json"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -47,9 +47,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(user)
+	json.Write(w, http.StatusOK, user)
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +58,5 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(users)
+	json.Write(w, http.StatusOK, users)
 }

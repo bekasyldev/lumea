@@ -2,13 +2,13 @@ package orders
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	database "github.com/bekasyldev/lumea/internal/database"
+	"github.com/bekasyldev/lumea/internal/json"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -38,9 +38,7 @@ func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(orders)
+	json.Write(w, http.StatusOK, orders)
 }
 
 // GET /orders/{id}
@@ -56,16 +54,14 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(order)
+	json.Write(w, http.StatusOK, order)
 }
 
 // POST /orders
 func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	var input CreateOrderInput
 
-	err := json.NewDecoder(r.Body).Decode(&input)
+	err := json.Read(r, &input)
 	if err != nil {
 		OrdersCreatedTotal.WithLabelValues(resultFailure, reasonInvalidBody).Inc()
 		slog.WarnContext(r.Context(), "orders: invalid request body", "err", err)
@@ -80,9 +76,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(order)
+	json.Write(w, http.StatusCreated, order)
 }
 
 // PUT /orders/{id}
@@ -94,7 +88,7 @@ func (h *Handler) UpdateOrder(w http.ResponseWriter, r *http.Request) {
 
 	var orderParams database.UpdateOrderParams
 
-	err := json.NewDecoder(r.Body).Decode(&orderParams)
+	err := json.Read(r, &orderParams)
 	if err != nil {
 		slog.WarnContext(r.Context(), "orders: invalid request body", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -121,7 +115,7 @@ func (h *Handler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request) {
 
 	var statusParams database.UpdateOrderStatusParams
 
-	err := json.NewDecoder(r.Body).Decode(&statusParams)
+	err := json.Read(r, &statusParams)
 	if err != nil {
 		slog.WarnContext(r.Context(), "orders: invalid request body", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)

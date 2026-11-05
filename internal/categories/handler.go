@@ -2,13 +2,13 @@ package categories
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	database "github.com/bekasyldev/lumea/internal/database"
+	"github.com/bekasyldev/lumea/internal/json"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -38,9 +38,7 @@ func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(categories)
+	json.Write(w, http.StatusOK, categories)
 }
 
 // GET /categories/{id}
@@ -58,9 +56,7 @@ func (h *Handler) GetCategoryByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(category)
+	json.Write(w, http.StatusOK, category)
 }
 
 // GET /categories/slug/{slug}
@@ -71,16 +67,14 @@ func (h *Handler) GetCategoryBySlug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(category)
+	json.Write(w, http.StatusOK, category)
 }
 
 // POST /categories
 func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	var categoryParams database.CreateCategoryParams
 
-	err := json.NewDecoder(r.Body).Decode(&categoryParams)
+	err := json.Read(r, &categoryParams)
 	if err != nil {
 		slog.WarnContext(r.Context(), "categories: invalid request body", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -93,9 +87,7 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(category)
+	json.Write(w, http.StatusCreated, category)
 }
 
 // PUT /categories/{id}
@@ -109,7 +101,7 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 
 	var categoryParams database.UpdateCategoryParams
 
-	err = json.NewDecoder(r.Body).Decode(&categoryParams)
+	err = json.Read(r, &categoryParams)
 	if err != nil {
 		slog.WarnContext(r.Context(), "categories: invalid request body", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -2,7 +2,6 @@ package media
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	database "github.com/bekasyldev/lumea/internal/database"
+	"github.com/bekasyldev/lumea/internal/json"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -109,9 +109,7 @@ func (h *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(productImage)
+	json.Write(w, http.StatusCreated, productImage)
 }
 
 func (h *Handler) GetListProductImages(w http.ResponseWriter, r *http.Request) {
@@ -127,9 +125,7 @@ func (h *Handler) GetListProductImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(productImages)
+	json.Write(w, http.StatusOK, productImages)
 }
 
 func (h *Handler) GetListVariantImages(w http.ResponseWriter, r *http.Request) {
@@ -154,9 +150,7 @@ func (h *Handler) GetListVariantImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(variantImages)
+	json.Write(w, http.StatusOK, variantImages)
 }
 
 func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {

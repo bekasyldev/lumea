@@ -2,13 +2,13 @@ package product
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	database "github.com/bekasyldev/lumea/internal/database"
+	"github.com/bekasyldev/lumea/internal/json"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -36,9 +36,7 @@ func (h *Handler) ListProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(products)
+	json.Write(w, http.StatusOK, products)
 }
 
 // POST /products
@@ -46,7 +44,7 @@ func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var product database.CreateProductParams
 
-	parseErr := json.NewDecoder(r.Body).Decode((&product))
+	parseErr := json.Read(r, &product)
 	if parseErr != nil {
 		slog.WarnContext(ctx, "product: invalid request body", "err", parseErr)
 		http.Error(w, parseErr.Error(), http.StatusBadRequest)
@@ -104,9 +102,7 @@ func (h *Handler) ListProductVariants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(productVariants)
+	json.Write(w, http.StatusOK, productVariants)
 }
 
 // POST /products/{id}/variants
@@ -122,7 +118,7 @@ func (h *Handler) CreateProductVariant(w http.ResponseWriter, r *http.Request) {
 
 	var productVariant database.CreateProductVariantParams
 
-	err = json.NewDecoder(r.Body).Decode((&productVariant))
+	err = json.Read(r, &productVariant)
 	if err != nil {
 		slog.WarnContext(ctx, "product: invalid request body", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
