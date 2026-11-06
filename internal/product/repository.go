@@ -23,8 +23,17 @@ func NewRepository(q *database.Queries) *Repository {
 	return &Repository{q: q}
 }
 
-func (r *Repository) ListProducts(ctx context.Context) ([]database.Product, error) {
-	rows, err := r.q.ListProducts(ctx)
+func (r *Repository) ListProducts(ctx context.Context, cursor int64, dir string, limit int32) ([]database.Product, error) {
+	var rows []database.Product
+	var err error
+	if dir == string(DirectionNext) {
+		rows, err = r.q.ListProductsForword(ctx, database.ListProductsForwordParams{ID: cursor, Limit: limit})
+	}
+
+	if dir == string(DirectionPrev) {
+		rows, err = r.q.ListProductsBackword(ctx, database.ListProductsBackwordParams{ID: cursor, Limit: limit})
+	}
+
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {

@@ -1,4 +1,4 @@
--- name: ListProducts :many
+-- name: ListProductsForword :many
 SELECT
     id,
     name,
@@ -9,7 +9,27 @@ SELECT
     updated_at,
     category_id
 FROM products
-ORDER BY created_at;
+WHERE id > $1
+ORDER BY id ASC
+LIMIT $2;
+
+-- name: ListProductsBackword :many
+SELECT * FROM (
+SELECT
+    id,
+    name,
+    slug,
+    description,
+    is_active,
+    created_at,
+    updated_at,
+    category_id
+FROM products
+WHERE id < $1
+ORDER BY id DESC
+LIMIT $2
+) AS page
+ORDER BY id ASC;
 
 -- name: GetProductByID :one
 SELECT

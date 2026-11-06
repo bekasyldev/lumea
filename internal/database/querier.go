@@ -40,7 +40,8 @@ type Querier interface {
 	ListProductImageKeys(ctx context.Context, productID int64) ([]string, error)
 	ListProductImages(ctx context.Context, productID int64) ([]ProductImage, error)
 	ListProductVariants(ctx context.Context, productID int64) ([]ProductVariant, error)
-	ListProducts(ctx context.Context) ([]Product, error)
+	ListProductsBackword(ctx context.Context, arg ListProductsBackwordParams) ([]Product, error)
+	ListProductsForword(ctx context.Context, arg ListProductsForwordParams) ([]Product, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
 	// images of the variant + shared images of its product
 	ListVariantImages(ctx context.Context, arg ListVariantImagesParams) ([]ProductImage, error)

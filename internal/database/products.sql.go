@@ -150,7 +150,8 @@ func (q *Queries) ListProductVariants(ctx context.Context, productID int64) ([]P
 	return items, nil
 }
 
-const listProducts = `-- name: ListProducts :many
+const listProductsBackword = `-- name: ListProductsBackword :many
+SELECT id, name, slug, description, is_active, created_at, updated_at, category_id FROM (
 SELECT
     id,
     name,
@@ -161,11 +162,70 @@ SELECT
     updated_at,
     category_id
 FROM products
-ORDER BY created_at
+WHERE id < $1
+ORDER BY id DESC
+LIMIT $2
+) AS page
+ORDER BY id ASC
 `
 
-func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
-	rows, err := q.db.Query(ctx, listProducts)
+type ListProductsBackwordParams struct {
+	ID    int64
+	Limit int32
+}
+
+func (q *Queries) ListProductsBackword(ctx context.Context, arg ListProductsBackwordParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, listProductsBackword, arg.ID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Product
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Description,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CategoryID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductsForword = `-- name: ListProductsForword :many
+SELECT
+    id,
+    name,
+    slug,
+    description,
+    is_active,
+    created_at,
+    updated_at,
+    category_id
+FROM products
+WHERE id > $1
+ORDER BY id ASC
+LIMIT $2
+`
+
+type ListProductsForwordParams struct {
+	ID    int64
+	Limit int32
+}
+
+func (q *Queries) ListProductsForword(ctx context.Context, arg ListProductsForwordParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, listProductsForword, arg.ID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

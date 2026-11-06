@@ -13,10 +13,12 @@ var (
 	ErrSlugRequired     = errors.New("slug is required")
 	ErrInvalidPrice     = errors.New("price must be greater than 0")
 	ErrInvalidWholesale = errors.New("wholesale price and min qty must be set together, price must be lower than regular price and min qty at least 2")
+	ErrInvalidLimit     = errors.New("limit should be between 1 and 100")
+	ErrInvalidDir       = errors.New("dir should be equal to 'next' or 'prev'")
 )
 
 type productStore interface {
-	ListProducts(ctx context.Context) ([]database.Product, error)
+	ListProducts(ctx context.Context, cursor int64, dir string, limit int32) ([]database.Product, error)
 	GetProductByID(ctx context.Context, id int64) (database.Product, error)
 	CreateProduct(ctx context.Context, productParams database.CreateProductParams) error
 	ListProductVariants(ctx context.Context, productId int64) ([]database.ProductVariant, error)
@@ -31,8 +33,38 @@ func NewService(repo productStore) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) ListProducts(ctx context.Context) ([]database.Product, error) {
-	return s.repo.ListProducts(ctx)
+func (s *Service) ListProducts(ctx context.Context, curs int64, dir string, limit int32) ([]database.Product, int64, bool, error) {
+	if limit < 1 || limit > 100 {
+		return []database.Product{}, 0, false, ErrInvalidLimit
+	}
+
+	if dir != string(DirectionNext) && dir != string(DirectionPrev) {
+		return []database.Product{}, 0, false, ErrInvalidDir
+	}
+
+	rows, err := s.repo.ListProducts(ctx, curs, dir, limit+1)
+	if err != nil {
+		return []database.Product{}, 0, false, err
+	}
+
+	hasMore := int32(len(rows)) > limit
+	if hasMore {
+		if dir == string(DirectionNext) {
+			rows = rows[:limit]
+		} else {
+			rows = rows[1:]
+		}
+	}
+	if len(rows) == 0 {
+		return []database.Product{}, curs, false, nil
+	}
+
+	cursor := rows[len(rows)-1].ID
+	if dir == string(DirectionPrev) {
+		cursor = rows[0].ID
+	}
+
+	return rows, cursor, hasMore, nil
 }
 
 func (s *Service) CreateProduct(ctx context.Context, productParams database.CreateProductParams) error {

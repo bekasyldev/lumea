@@ -54,3 +54,13 @@ Here I will list the things I need to finish.
     - Create several custom metrics and monitor them
     - Run prometheus locally and work with it
 - [ ] Rate limiting, validation, and pagination
+    - Undestand difference between cursor and offset based paginations
+    - [x]Implement cursor based pagination 
+    <!-- I chose cursor because i more complex and used widely in moder API(public especially). I know that offset based suit best for my application and I am doing overwork) -->
+- [ ] Review the code with AI agent and work one one bugs
+    - [ ] There is no autorization only authentication
+    - [ ] Write one integration test agaisnt CreateOrder to test race condition
+    - [ ] Refresh token works as an acess token
+    - [ ] DeleteOrder should return the stock and run it in transaction(like DeleteOrderItem)
+    - [ ] Fix validation of /register endpoint make sure empty username and password can't create a user
+

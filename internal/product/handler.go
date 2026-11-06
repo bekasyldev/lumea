@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -13,7 +14,7 @@ import (
 )
 
 type ProductService interface {
-	ListProducts(ctx context.Context) ([]database.Product, error)
+	ListProducts(ctx context.Context, cursor int64, dir string, limit int32) ([]database.Product, int64, bool, error)
 	CreateProduct(ctx context.Context, productParams database.CreateProductParams) error
 	ListProductVariants(ctx context.Context, productId int64) ([]database.ProductVariant, error)
 	CreateProductVariant(ctx context.Context, variantParams database.CreateProductVariantParams) error
@@ -29,14 +30,57 @@ func NewHandler(svc ProductService) *Handler {
 
 // GET /products
 func (h *Handler) ListProducts(w http.ResponseWriter, r *http.Request) {
-	products, err := h.svc.ListProducts(r.Context())
+	ctx := r.Context()
+	q := r.URL.Query()
+
+	// defaults: first page, going forward, 20 items
+	dir := q.Get("dir")
+	if dir == "" {
+		dir = string(DirectionNext)
+	}
+
+	limit := int32(20)
+	if s := q.Get("limit"); s != "" {
+		l, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			http.Error(w, "invalid limit", http.StatusBadRequest)
+			return
+		}
+		limit = int32(l)
+	}
+
+	// no cursor: next starts from the beginning, prev starts from the end
+	var cursor int64 // equal to zero for next direction
+	if dir == string(DirectionPrev) {
+		cursor = math.MaxInt64
+	}
+	if s := q.Get("cursor"); s != "" {
+		c, err := strconv.ParseInt(s, 10, 64)
+		if err != nil || c < 0 {
+			http.Error(w, "invalid cursor", http.StatusBadRequest)
+			return
+		}
+		cursor = c
+	}
+
+	products, nextCursor, hasMore, err := h.svc.ListProducts(ctx, cursor, dir, limit)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "product: list failed", "err", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		switch {
+		case errors.Is(err, ErrInvalidLimit), errors.Is(err, ErrInvalidDir):
+			slog.WarnContext(ctx, "product: invalid list params", "err", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
+			slog.ErrorContext(ctx, "product: list failed", "err", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	json.Write(w, http.StatusOK, products)
+	json.Write(w, http.StatusOK, Pagination{
+		Data:    products,
+		Cursor:  nextCursor,
+		HasMore: hasMore,
+	})
 }
 
 // POST /products
