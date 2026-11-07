@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/bekasyldev/lumea/internal/media/s3store"
+	"github.com/bekasyldev/lumea/internal/ratelimit"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -53,7 +54,10 @@ func main() {
 		storage: store,
 	}
 
-	if err := api.run(ctx, api.mount()); err != nil {
+	limiter := ratelimit.NewRateLimiter(100, 10)
+	defer limiter.Stop()
+
+	if err := api.run(ctx, api.mount(limiter)); err != nil {
 		slog.Error("server is failed to start", "error", err)
 		os.Exit(1)
 	}

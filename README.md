@@ -57,6 +57,7 @@ Here I will list the things I need to finish.
     - Undestand difference between cursor and offset based paginations
     - [x]Implement cursor based pagination 
     <!-- I chose cursor because i more complex and used widely in moder API(public especially). I know that offset based suit best for my application and I am doing overwork) -->
+    - Implement token bucket algorithm
 - [ ] Review the code with AI agent and work one one bugs
     - [ ] There is no autorization only authentication
     - [ ] Write one integration test agaisnt CreateOrder to test race condition

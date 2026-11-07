@@ -13,6 +13,7 @@ import (
 	"github.com/bekasyldev/lumea/internal/media/s3store"
 	"github.com/bekasyldev/lumea/internal/orders"
 	"github.com/bekasyldev/lumea/internal/product"
+	"github.com/bekasyldev/lumea/internal/ratelimit"
 	"github.com/bekasyldev/lumea/internal/user"
 
 	"github.com/go-chi/chi/v5"
@@ -23,7 +24,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func (app *application) mount() http.Handler {
+func (app *application) mount(limiter *ratelimit.RateLimiter) http.Handler {
 	r := chi.NewRouter()
 
 	reg := prometheus.NewRegistry()
@@ -41,6 +42,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer) // recover from crashes
 	r.Use(app.metricMiddlware)
+	r.Use(limiter.Middleware)
 
 	queries := database.New(app.db) // store connection inside the Queries struct
 	userRepo := user.NewRepository(queries)
