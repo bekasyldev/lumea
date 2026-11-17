@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/bekasyldev/lumea/internal/token"
@@ -12,8 +11,6 @@ import (
 type contextKey string
 
 const userContextKey contextKey = "user"
-
-var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 func (app *application) requireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -35,5 +32,22 @@ func (app *application) requireAuth(next http.Handler) http.Handler {
 
 		ctx := context.WithValue(r.Context(), userContextKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (app *application) requireRole(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c := r.Context().Value(userContextKey)
+		claims, ok := c.(*token.Claims)
+		if !ok {
+			http.Error(w, "role is not provided", http.StatusBadRequest)
+			return
+		}
+		if claims.Role != "admin" {
+			http.Error(w, "not have access", http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	})
 }

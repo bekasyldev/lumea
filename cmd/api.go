@@ -85,29 +85,42 @@ func (app *application) mount(limiter *ratelimit.RateLimiter) http.Handler {
 		r.Get("/categories", categoryHandler.ListCategories)
 		r.Get("/categories/{id}", categoryHandler.GetCategoryByID)
 		r.Get("/categories/slug/{slug}", categoryHandler.GetCategoryBySlug)
-
-		r.Get("/metrics", metricHandleFunc)
 	})
 
 	// private routes (require a valid JWT)
 	r.Group(func(r chi.Router) {
 		r.Use(app.requireAuth)
-		r.Get("/users", userHandler.List)
-		r.Get("/users/{id}", userHandler.GetByID)
-		r.Post("/products", productHandler.CreateProduct)
-		r.Post("/products/{id}/variants", productHandler.CreateProductVariant)
-		r.Post("/images", mediaHandler.UploadImage)
-		r.Delete("/images/{id}", mediaHandler.DeleteImage)
-		r.Post("/categories", categoryHandler.CreateCategory)
-		r.Put("/categories/{id}", categoryHandler.UpdateCategory)
-		r.Delete("/categories/{id}", categoryHandler.DeleteCategory)
-		r.Get("/orders", orderHandler.ListOrders)
+
+		// user routes
 		r.Post("/orders", orderHandler.CreateOrder)
-		r.Get("/orders/{id}", orderHandler.GetOrderByID)
-		r.Put("/orders/{id}", orderHandler.UpdateOrder)
-		r.Patch("/orders/{id}/status", orderHandler.UpdateOrderStatus)
-		r.Delete("/orders/{id}", orderHandler.DeleteOrder)
-		r.Delete("/orders/{id}/items/{itemId}", orderHandler.DeleteOrderItem)
+
+		// admin routes
+		r.Group(func(r chi.Router) {
+			r.Use(app.requireRole)
+
+			// users
+			r.Get("/users", userHandler.List)
+			r.Get("/users/{id}", userHandler.GetByID)
+
+			// catalog
+			r.Post("/products", productHandler.CreateProduct)
+			r.Post("/products/{id}/variants", productHandler.CreateProductVariant)
+			r.Post("/categories", categoryHandler.CreateCategory)
+			r.Put("/categories/{id}", categoryHandler.UpdateCategory)
+			r.Delete("/categories/{id}", categoryHandler.DeleteCategory)
+			r.Post("/images", mediaHandler.UploadImage)
+			r.Delete("/images/{id}", mediaHandler.DeleteImage)
+
+			// orders
+			r.Get("/orders", orderHandler.ListOrders)
+			r.Get("/orders/{id}", orderHandler.GetOrderByID)
+			r.Put("/orders/{id}", orderHandler.UpdateOrder)
+			r.Patch("/orders/{id}/status", orderHandler.UpdateOrderStatus)
+			r.Delete("/orders/{id}", orderHandler.DeleteOrder)
+			r.Delete("/orders/{id}/items/{itemId}", orderHandler.DeleteOrderItem)
+
+			r.Get("/metrics", metricHandleFunc)
+		})
 	})
 
 	return r

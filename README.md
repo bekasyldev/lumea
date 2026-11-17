@@ -53,13 +53,14 @@ Here I will list the things I need to finish.
     - Understand difference between metric type and when to use them
     - Create several custom metrics and monitor them
     - Run prometheus locally and work with it
-- [ ] Rate limiting, validation, and pagination
+- [x] Rate limiting, validation, and pagination
     - Undestand difference between cursor and offset based paginations
     - [x]Implement cursor based pagination 
     <!-- I chose cursor because i more complex and used widely in moder API(public especially). I know that offset based suit best for my application and I am doing overwork) -->
     - Implement token bucket algorithm
 - [ ] Review the code with AI agent and work one one bugs
-    - [ ] There is no autorization only authentication
+    - [x] There is no autorization only authentication
+    Authorization it is check what access has user usually based on roles. The simple solution will be just wrap it in router group and protect it with some admin require middlware.
     - [ ] Write one integration test agaisnt CreateOrder to test race condition
     - [ ] Refresh token works as an acess token
     - [ ] DeleteOrder should return the stock and run it in transaction(like DeleteOrderItem)
