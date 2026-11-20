@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	database "github.com/bekasyldev/lumea/internal/database"
 	"github.com/bekasyldev/lumea/internal/json"
@@ -38,6 +39,13 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err := json.Read(r, &c); err != nil {
 		slog.WarnContext(ctx, "register: invalid request body", "err", err)
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	c.Username = strings.TrimSpace(c.Username)
+	if len(c.Username) < 2 || len(c.Password) < 8 || len(c.Password) > 72 {
+		slog.WarnContext(ctx, "register: invalid credentials")
+		http.Error(w, "username must be at least 2 characters and password 8-72 characters", http.StatusBadRequest)
 		return
 	}
 

@@ -64,5 +64,5 @@ Here I will list the things I need to finish.
     - [X] Write one integration test agaisnt CreateOrder to test race condition
     - [X] Refresh token works as an acess token
     - [X] DeleteOrder should return the stock and run it in transaction(like DeleteOrderItem)
-    - [ ] Fix validation of /register endpoint make sure empty username and password can't create a user
+    - [X] Fix validation of /register endpoint make sure empty username and password can't create a user
 
