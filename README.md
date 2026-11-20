@@ -6,6 +6,9 @@ Lumea is a cosmetics brand of my friend who owns the business. The goal was to l
 ## Why I built it
 I want to learn Go with hands-on practice, so it is more interesting than just theory. I like the idea of combining learning with helping my friend who has a business in cosmetics. So I built a REST API in Go for Lumea cosmetics.
 
+## API docs
+Bruno based API documentation: https://github.com/bekasyldev/lumea_api_docs
+
 ## Features
 - JWT auth with refresh tokens
 - Products and variants
