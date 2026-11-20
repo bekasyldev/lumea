@@ -62,7 +62,7 @@ Here I will list the things I need to finish.
     - [x] There is no autorization only authentication
     Authorization it is check what access has user usually based on roles. The simple solution will be just wrap it in router group and protect it with some admin require middlware.
     - [X] Write one integration test agaisnt CreateOrder to test race condition
-    - [ ] Refresh token works as an acess token
-    - [ ] DeleteOrder should return the stock and run it in transaction(like DeleteOrderItem)
+    - [X] Refresh token works as an acess token
+    - [X] DeleteOrder should return the stock and run it in transaction(like DeleteOrderItem)
     - [ ] Fix validation of /register endpoint make sure empty username and password can't create a user
 

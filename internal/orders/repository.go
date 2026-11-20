@@ -228,6 +228,7 @@ func (r *Repository) DeleteOrderItem(ctx context.Context, itemParams database.De
 	}
 
 	orderItem, err := qtx.GetOrderItemByID(ctx, itemParams.ID)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrOrderItemNotFound
@@ -281,7 +282,47 @@ func (r *Repository) DeleteOrderItem(ctx context.Context, itemParams database.De
 }
 
 func (r *Repository) DeleteOrder(ctx context.Context, id int64) error {
-	rows, err := r.q.DeleteOrder(ctx, id)
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := r.q.WithTx(tx)
+
+	// lock the order row
+	if _, err := qtx.LockOrderForUpdate(ctx, id); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrOrderNotFound
+		}
+		return err
+	}
+
+	items, err := qtx.ListOrderItemsByOrderID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	order, err := qtx.GetOrderByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrOrderNotFound
+		}
+
+		return err
+	}
+
+	// if order cancelled it already retunred variant to the stock
+	if OrderStatus(order.Status) != StatusCancelled {
+		for _, item := range items {
+			var params = database.ReturnVariantToStockParams{ID: item.ProductVariantID, Stock: item.Quantity}
+			if err := qtx.ReturnVariantToStock(ctx, params); err != nil {
+				return err
+			}
+		}
+	}
+
+	rows, err := qtx.DeleteOrder(ctx, id) // also removes orderItems automatically
 	if err != nil {
 		return err
 	}
@@ -289,7 +330,7 @@ func (r *Repository) DeleteOrder(ctx context.Context, id int64) error {
 		return ErrOrderNotFound
 	}
 
-	return nil
+	return tx.Commit(ctx)
 }
 
 func mapItemErr(err error) error {
