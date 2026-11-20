@@ -55,25 +55,45 @@ func setupPostgres(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
-// seedVariant inserts one category, product and variant with the given stock
-func seedVariant(t *testing.T, pool *pgxpool.Pool, stock int32) int64 {
+type Product struct {
+	name        string
+	slug        string
+	description string
+	stock       int32
+	categoryID  int64
+}
+
+type Category struct {
+	name string
+	slug string
+}
+
+func seedCategory(t *testing.T, pool *pgxpool.Pool, c Category) int64 {
 	t.Helper()
 	ctx := context.Background()
 
 	var categoryID int64
 	err := pool.QueryRow(ctx,
 		`INSERT INTO categories (name, slug) VALUES ($1, $2) RETURNING id`,
-		"Skincare", "skincare",
+		c.name, c.slug,
 	).Scan(&categoryID)
 	if err != nil {
 		t.Fatalf("seed category: %v", err)
 	}
 
+	return categoryID
+}
+
+// seedVariant inserts product and variant with the given stock
+func seedVariant(t *testing.T, pool *pgxpool.Pool, p Product) int64 {
+	t.Helper()
+	ctx := context.Background()
+
 	var productID int64
-	err = pool.QueryRow(ctx,
+	err := pool.QueryRow(ctx,
 		`INSERT INTO products (name, slug, description, category_id)
 		 VALUES ($1, $2, $3, $4) RETURNING id`,
-		"Cream", "cream", "Moisturizing face cream", categoryID,
+		p.name, p.slug, p.description, p.categoryID,
 	).Scan(&productID)
 	if err != nil {
 		t.Fatalf("seed product: %v", err)
@@ -84,7 +104,7 @@ func seedVariant(t *testing.T, pool *pgxpool.Pool, stock int32) int64 {
 		`INSERT INTO product_variants
 		   (product_id, name, price, wholesale_price, wholesale_min_qty, stock)
 		 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-		productID, "50 ml", 1000, 800, 5, stock,
+		productID, "50 ml", 1000, 800, 5, p.stock,
 	).Scan(&variantID)
 	if err != nil {
 		t.Fatalf("seed variant: %v", err)
@@ -111,7 +131,22 @@ func TestRaceCondtionOrders(t *testing.T) {
 	repo := NewRepository(pool, database.New(pool))
 	svc := NewService(repo)
 
-	variantID := seedVariant(t, pool, 10)
+	c := Category{
+		name: "Skincare",
+		slug: "skincare",
+	}
+
+	categoryID := seedCategory(t, pool, c)
+
+	p := Product{
+		name:        "Cream",
+		slug:        "cream",
+		description: "Moisturizing face cream",
+		stock:       10,
+		categoryID:  categoryID,
+	}
+
+	variantID := seedVariant(t, pool, p)
 	input := CreateOrderInput{
 		CustomerName:  "Aida",
 		CustomerPhone: "+77000000000",
@@ -159,4 +194,57 @@ func TestRaceCondtionOrders(t *testing.T) {
 		t.Errorf("orders in db = %d, want 10", orderCount)
 	}
 
+}
+
+func TestTransitionRollbaackOrder(t *testing.T) {
+	pool := setupPostgres(t)
+	repo := NewRepository(pool, database.New(pool))
+	svc := NewService(repo)
+
+	c := Category{
+		name: "Skincare",
+		slug: "skincare",
+	}
+	categoryID := seedCategory(t, pool, c)
+
+	p1 := Product{
+		name:        "Cream",
+		slug:        "cream",
+		description: "Moisturizing face cream",
+		stock:       10,
+		categoryID:  categoryID,
+	}
+
+	p2 := Product{
+		name:        "Soap",
+		slug:        "soap",
+		description: "Universal soap for all skinks)",
+		stock:       1,
+		categoryID:  categoryID,
+	}
+
+	v1ID := seedVariant(t, pool, p1)
+	v2ID := seedVariant(t, pool, p2)
+
+	input := CreateOrderInput{
+		CustomerName:  "Aida",
+		CustomerPhone: "+77000000000",
+		Items: []OrderItemInput{
+			{ProductVariantID: v1ID, Quantity: 3},
+			{ProductVariantID: v2ID, Quantity: 5}, // not have enough stock
+		},
+	}
+
+	_, err := svc.CreateOrder(context.Background(), input)
+	if !errors.Is(err, ErrInsufficientStock) {
+		t.Fatal(err)
+	}
+
+	if got := variantStock(t, pool, v1ID); got != 10 {
+		t.Fatalf("err = %v ,want %v", err, ErrInsufficientStock) // should rollback
+	}
+
+	if got := variantStock(t, pool, v2ID); got != 1 {
+		t.Fatalf("err = %v ,want %v", err, ErrInsufficientStock) // should rollback
+	}
 }
