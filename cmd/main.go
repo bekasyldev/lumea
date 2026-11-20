@@ -9,6 +9,7 @@ import (
 
 	"github.com/bekasyldev/lumea/internal/media/s3store"
 	"github.com/bekasyldev/lumea/internal/ratelimit"
+	"github.com/bekasyldev/lumea/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -42,16 +43,19 @@ func main() {
 
 	logger.Info("connected to database")
 
-	store, err := s3store.New(ctx, cfg.s3)
+	s3, err := s3store.New(ctx, cfg.s3)
 
 	if err != nil {
 		panic(err)
 	}
 
+	redis := store.NewRedis()
+
 	api := application{
 		config:  cfg,
 		db:      pool,
-		storage: store,
+		storage: s3,
+		redis:   redis,
 	}
 
 	limiter := ratelimit.NewRateLimiter(100, 10)

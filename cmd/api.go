@@ -14,6 +14,7 @@ import (
 	"github.com/bekasyldev/lumea/internal/orders"
 	"github.com/bekasyldev/lumea/internal/product"
 	"github.com/bekasyldev/lumea/internal/ratelimit"
+	"github.com/bekasyldev/lumea/internal/store"
 	"github.com/bekasyldev/lumea/internal/user"
 
 	"github.com/go-chi/chi/v5"
@@ -50,7 +51,7 @@ func (app *application) mount(limiter *ratelimit.RateLimiter) http.Handler {
 	userHandler := user.NewHandler(userService)
 
 	authRepo := auth.NewRepository(queries)
-	authService := auth.NewService(authRepo)
+	authService := auth.NewService(app.redis, authRepo)
 	authHandler := auth.NewAuthHandler(authService)
 
 	productRepo := product.NewRepository(queries)
@@ -77,6 +78,7 @@ func (app *application) mount(limiter *ratelimit.RateLimiter) http.Handler {
 		r.Post("/register", authHandler.Register)
 		r.Post("/login", authHandler.Login)
 		r.Post("/auth/refresh", authHandler.RefreshToken)
+		r.Post("/auth/refresh/logout", authHandler.Logout)
 
 		r.Get("/products", productHandler.ListProducts)
 		r.Get("/products/{id}/variants", productHandler.ListProductVariants)
@@ -164,6 +166,7 @@ type application struct {
 	config  config
 	db      *pgxpool.Pool
 	storage *s3store.Store
+	redis   *store.Redis
 }
 
 type config struct {

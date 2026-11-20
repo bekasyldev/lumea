@@ -14,7 +14,8 @@ import (
 type AuthService interface {
 	Register(ctx context.Context, username, password string) (database.CreateUserRow, error)
 	Login(ctx context.Context, username, password string) (token.TokenPair, error)
-	Refresh(ctx context.Context, refreshToken string) (string, error)
+	Refresh(ctx context.Context, refreshToken string) (token.TokenPair, error)
+	Logout(ctx context.Context, refreshToken string) error
 }
 
 type AuthHandler struct {
@@ -101,7 +102,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := h.svc.Refresh(ctx, cookie.Value)
+	tokens, err := h.svc.Refresh(ctx, cookie.Value)
 	if err != nil {
 		if errors.Is(err, ErrInvalidRefreshToken) {
 			slog.WarnContext(ctx, "token: invalid refresh token", "err", err)
@@ -113,5 +114,51 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.Write(w, http.StatusOK, token.TokenPair{AccessToken: accessToken})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    tokens.RefreshToken,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   7 * 24 * 60 * 60,
+		Path:     "/auth/refresh",
+	})
+
+	json.Write(w, http.StatusOK, token.TokenPair{AccessToken: tokens.AccessToken})
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		slog.WarnContext(ctx, "token: missing refresh token", "err", err)
+		http.Error(w, "missing refresh token", http.StatusUnauthorized)
+		return
+	}
+
+	err = h.svc.Logout(ctx, cookie.Value)
+	if err != nil {
+		if errors.Is(err, ErrInvalidRefreshToken) {
+			slog.WarnContext(ctx, "auth: invalid refresh token", "err", err)
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		slog.ErrorContext(ctx, "auth: logout failed", "err", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// clear refresh cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+		Path:     "/auth/refresh",
+	})
+
+	w.WriteHeader(http.StatusNoContent)
 }

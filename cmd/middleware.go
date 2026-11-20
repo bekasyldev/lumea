@@ -23,7 +23,7 @@ func (app *application) requireAuth(next http.Handler) http.Handler {
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &token.Claims{}
 
-		token, err := token.ValidateToken(tokenString, claims)
+		token, err := token.ValidateToken(tokenString, token.TokenAccess, claims)
 
 		if err != nil || !token.Valid {
 			http.Error(w, "invalid or expired token", http.StatusUnauthorized)
