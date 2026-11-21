@@ -10,11 +10,21 @@ I want to learn Go with hands-on practice, so it is more interesting than just t
 Bruno based API documentation: https://github.com/bekasyldev/lumea_api_docs
 
 ## Features
-- JWT auth with refresh tokens
+
+### Domain
 - Products and variants
 - Categories
 - Orders with items and status updates
+- Atomic order creation with stock locking; stock is returned when an order is deleted or cancelled
 - Image upload to S3 storage (RustFS, an alternative to MinIO)
+
+### Platform
+- JWT auth with refresh tokens and logout (revoked via Redis)
+- Role-based access: user and admin
+- Token bucket based rate limiting: 100 capacity, 10/s per IP, returns 429 with a `Retry-After` header
+- Cursor-based pagination on products
+- Prometheus metrics at `/metrics` (admin only): request duration, request count, orders created
+- Graceful shutdown with a 15s drain
 
 ## Tech stack
 - **Go**
@@ -22,10 +32,11 @@ Bruno based API documentation: https://github.com/bekasyldev/lumea_api_docs
 - **sqlc + pgx**
 - **goose** (for migrations)
 - **RustFS** (docker image)
+- **Redis**
 - **Docker Compose**
 
 ### Why these choices
-I chose chi as a framework because it is widely used and I had already created a router with net/http, so I wanted to speed up some steps along the way. Also it has great built-in middleware. I chose sqlc + pgx because it also helps me speed up writing type-safe code. I wanted to focus more on creating a real Go REST API.
+I chose chi as a framework because it is widely used and I had already created a router before with net/http, so I wanted to speed up some steps along the way. Also it has great built-in middleware. I chose sqlc + pgx because it also helps me speed up writing type-safe code. I added Redis for storing refresh tokens so I can revoke them any time, like in production. I wanted to focus more on creating a real Go REST API.
 
 ## Project structure
 - `cmd/` - contains the files the app needs to run
@@ -44,28 +55,30 @@ I chose chi as a framework because it is widely used and I had already created a
 1. Copy `.env.example` to `.env`
 2. Start the services `docker compose up`
 3. Run the migrations (`goose up`)
-4. Run the API (`go run ./cmd`)
+4. Set env vars by running `set -a; source .env; set +a`
+5. Run the API (`go run ./cmd`)
 
-## To-do list
-Here I will list the things I need to finish.
+## Roadmap and what I learned
+Everything I planned to build, plus notes on what I learned along the way.
 
 - [x] Tests (unit and integration)
 - [x] Atomic order creation with transactions and stock locking
 - [x] Context, timeouts, and graceful shutdown
 - [x] Structured logging and metrics
-    - Understand difference between metric type and when to use them
+    - Understand the difference between metric types and when to use them
     - Create several custom metrics and monitor them
-    - Run prometheus locally and work with it
+    - Run Prometheus locally and work with it
 - [x] Rate limiting, validation, and pagination
-    - Undestand difference between cursor and offset based paginations
-    - [x]Implement cursor based pagination 
-    <!-- I chose cursor because i more complex and used widely in moder API(public especially). I know that offset based suit best for my application and I am doing overwork) -->
-    - Implement token bucket algorithm
-- [ ] Review the code with AI agent and work one one bugs
-    - [x] There is no autorization only authentication
-    Authorization it is check what access has user usually based on roles. The simple solution will be just wrap it in router group and protect it with some admin require middlware.
-    - [X] Write one integration test agaisnt CreateOrder to test race condition
-    - [X] Refresh token works as an acess token
-    - [X] DeleteOrder should return the stock and run it in transaction(like DeleteOrderItem)
-    - [X] Fix validation of /register endpoint make sure empty username and password can't create a user
+    - Understand the difference between cursor and offset based pagination
+    - [x] Implement cursor based pagination
 
+      I chose cursor-based pagination because it is more complex and widely used in modern APIs (especially public ones). I know offset-based pagination would suit my application better and that this is a bit of overengineering, but I wanted to learn it.
+    - Implement token bucket algorithm
+- [x] Review the code with an AI agent and work on bugs
+    - [x] There is no authorization, only authentication
+
+      Authorization checks what access a user has, usually based on roles. The simple solution is to wrap the routes in a router group and protect it with an admin-required middleware.
+    - [x] Write one integration test against CreateOrder to test the race condition
+    - [x] Refresh token works as an access token
+    - [x] DeleteOrder should return the stock and run in a transaction (like DeleteOrderItem)
+    - [x] Fix validation of the /register endpoint, so an empty username and password can't create a user
